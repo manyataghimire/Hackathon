@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet, Button, TextInput, Modal, Pressable } from "react-native";
+import { Button, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 
 export default function ProfileScreen() {
   const [showChangePassword, setShowChangePassword] = useState(false);

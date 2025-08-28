@@ -2,7 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, Body, Query, WebSocket, Web
 import bcrypt
 from database.models import User, BillInfo, Notification
 from sqlalchemy import select
-from backend.schemas import CreateUser, LoginUser, UserBillInfo, UpdateBill, ConnectionManager
+from backend.schemas import CreateUser, LoginUser, UserBillInfo, UpdateBill, ConnectionManager, ChangePasswordRequest
 from sqlalchemy.orm import Session
 from backend.dependencies import get_db
 from backend.utils import create_access_token, get_user_id_from_token
@@ -63,6 +63,28 @@ def login_user(user: LoginUser, db: Session = Depends(get_db)):
         "token_type": "bearer",
         "message": "Login successful"
     }
+
+@app.post("/change-password")
+def change_password(
+    password_data: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_token)
+):
+    stmt = select(User).where(User.id == user_id)
+    user = db.execute(stmt).scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if not bcrypt.checkpw(password_data.current_password.encode('utf-8'), user.password.encode('utf-8')):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+
+    hashed_new_password = bcrypt.hashpw(password_data.new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+    user.password = hashed_new_password
+    db.commit()
+
+    return {"message": "Password changed successfully"}
 
 @app.post("/add-bill")
 def add_bill(billinfo: UserBillInfo, db: Session = Depends(get_db), user_id: str = Depends(get_user_id_from_token)):
@@ -164,6 +186,7 @@ def delete_bill(
 
     return {"message": "Bill deleted successfully", "bill_id": bill_id}
 
+
 async def check_and_add_notifications(db: Session):
     current_date = datetime.now(pytz.timezone('Asia/Kathmandu')).date()
     reminder_days_map = {
@@ -172,18 +195,14 @@ async def check_and_add_notifications(db: Session):
         'deadline_day': 0
     }
 
-    print(f"Checking notifications at {datetime.now()} for date: {current_date}")
-
     bills_query = select(BillInfo).where(BillInfo.status == 'unpaid')
     bills = db.execute(bills_query).scalars().all()
 
     notifications_added = []
 
     for bill in bills:
-        print(f"Bill {bill.id}: title='{bill.title}', due_date={bill.due_date}, reminder_time={bill.reminder_time}, status={bill.status}")
         days_before_due = reminder_days_map.get(bill.reminder_time)
         if days_before_due is None:
-            print(f"Skipping bill {bill.id} due to unknown reminder_time: {bill.reminder_time}")
             continue
 
         due_date_local = bill.due_date
@@ -193,39 +212,34 @@ async def check_and_add_notifications(db: Session):
             due_date_local = due_date_local.date()
 
         reminder_date = due_date_local - timedelta(days=days_before_due)
-        print(f"Calculated reminder_date for bill {bill.id} is {reminder_date}")
 
         if reminder_date == current_date:
             message = f"Reminder: Your bill '{bill.title}' of amount {bill.amount} is due on {due_date_local}."
 
-            # Check for existing notification by user_id and bill_id
             existing_notification = db.query(Notification).filter_by(
                 user_id=bill.user_id,
                 bill_id=bill.id,
                 message=message
             ).first()
 
-            print(f"Existing notification: {existing_notification}")
-
             if not existing_notification:
-                print(f"Adding notification for user {bill.user_id}: {message}")
                 new_notification = Notification(
                     message=message,
                     user_id=bill.user_id,
-                    bill_id=bill.id  # Store the bill id here
+                    bill_id=bill.id 
                 )
                 db.add(new_notification)
                 db.commit()
                 db.refresh(new_notification)
                 notifications_added.append((bill.user_id, message))
-            else:
-                print(f"Notification already exists for bill {bill.id} and user {bill.user_id}")
-        else:
-            print(f"No notification for bill {bill.id} today.")
+
+                # ✅ Print only when a new notification is added
+                print(f"[{datetime.now()}] Notification added for user {bill.user_id}: {message}")
 
     # Send notifications via WebSocket
     for user_id, msg in notifications_added:
         await manager.send_personal_message(user_id, msg)
+
 
 
 async def notification_loop():
@@ -236,7 +250,7 @@ async def notification_loop():
             db.close()
         except Exception as e:
             print(f"Error in notification loop: {e}")
-        await asyncio.sleep(3600)
+        await asyncio.sleep(10)
 
 @app.on_event("startup")
 async def startup_event():
@@ -291,8 +305,20 @@ async def notifications_page(user_id: str):
     """
     return HTMLResponse(content=html_content)
 
-@app.get("/test-notifications")
-async def test_notifications(db: Session = Depends(get_db)):
-    await check_and_add_notifications(db)
-    return {"message": "Notifications checked manually"}
+@app.get("/notifications-list")
+def get_notifications(db: Session = Depends(get_db), user_id: str = Depends(get_user_id_from_token)):
+    stmt = select(Notification).where(Notification.user_id == user_id).order_by(Notification.created_at.desc())
+    notifications = db.execute(stmt).scalars().all()
 
+    if not notifications:
+        return JSONResponse(status_code=200, content={"message": "No notifications"})
+
+    return [
+        {
+            "id": str(notification.id),
+            "message": notification.message,
+            "bill_id": str(notification.bill_id),
+            "created_at": notification.created_at,
+        }
+        for notification in notifications
+    ]
