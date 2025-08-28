@@ -1,82 +1,247 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { Picker } from "@react-native-picker/picker";
+import * as Notifications from "expo-notifications";
+import React, { useEffect, useState } from "react";
+import {
+  Alert,
+  FlatList,
+  Modal,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+// 🔔 Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
-export default function HomeScreen() {
+interface Bill {
+  id: string;
+  name: string;
+  amount: string;
+  dueDate: string;
+  reminder: string;
+}
+
+export default function HomeScreen() { 
+  const [bills, setBills] = useState<Bill[]>([]);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [billName, setBillName] = useState("");
+  const [billAmount, setBillAmount] = useState("");
+  const [billDueDate, setBillDueDate] = useState("");
+  const [billReminder, setBillReminder] = useState("1 day before");
+
+  // ✅ Ask for notification permission when app starts
+  useEffect(() => {
+    (async () => {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission required", "Enable notifications to get reminders.");
+      }
+    })();
+  }, []);
+
+  // ✅ Schedule reminder based on due date & reminder option
+  async function scheduleBillReminder(billName: string, billDate: string, reminder: string) {
+    let dueDate = new Date(billDate);
+    if (isNaN(dueDate.getTime())) return;
+
+    switch (reminder) {
+      case "2 days before":
+        dueDate.setDate(dueDate.getDate() - 2);
+        break;
+      case "1 week before":
+        dueDate.setDate(dueDate.getDate() - 7);
+        break;
+      case "1 day before":
+        dueDate.setDate(dueDate.getDate() - 1);
+        break;
+    }
+
+    if (dueDate > new Date()) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: "Bill Reminder",
+          body: `Rs.{billName} is due soon! (Rs.{reminder})`,
+        },
+        trigger: { date: dueDate }, // ✅ Correct
+      });
+    }
+  }
+
+  // ✅ Add new bill
+  function addBill() {
+    if (!billName || !billAmount || !billDueDate) {
+      Alert.alert("Error", "Please fill all fields");
+      return;
+    }
+
+    const newBill: Bill = {
+      id: Date.now().toString(),
+      name: billName,
+      amount: billAmount,
+      dueDate: billDueDate,
+      reminder: billReminder,
+    };
+
+    setBills([...bills, newBill]);
+    scheduleBillReminder(billName, billDueDate, billReminder);
+    setModalVisible(false);
+    setBillName("");
+    setBillAmount("");
+    setBillDueDate("");
+    setBillReminder("1 day before");
+  }
+
+  // ✅ Delete bill
+  function deleteBill(id: string) {
+    setBills(bills.filter((bill) => bill.id !== id));
+  }
+
+  // ✅ Test notification after 5 sec
+  async function sendTestNotification() {
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Test Notification",
+        body: "This is a test notification (works in 5 sec).",
+      },
+      trigger: { seconds: 5 },
+    });
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedView style={{ gap: 10 }}>
-          <ThemedText type="title">🚀 My First Expo App!</ThemedText>
-          <ThemedText type="default">This is showing on my phone 📱</ThemedText>
-          <ThemedText type="default">And it looks much cleaner now 🎨</ThemedText>
-        
-      </ThemedView>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.header}>Bill Reminder</Text>
 
+      <FlatList
+        data={bills}
+        keyExtractor={(item) => item.id}
+        renderItem={({ item }) => (
+          <View style={styles.billItem}>
+            <Text style={styles.billText}>
+              {item.name} - Rs.{item.amount} - Due: {item.dueDate}
+            </Text>
+            <TouchableOpacity onPress={() => deleteBill(item.id)}>
+              <Text style={styles.deleteText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      />
 
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* Add Bill Button */}
+      <TouchableOpacity
+        style={styles.addButton}
+        onPress={() => setModalVisible(true)}
+      >
+        <Text style={styles.addButtonText}>+ Add Bill</Text>
+      </TouchableOpacity>
+
+      {/* 🔔 Test Notification Button */}
+      <TouchableOpacity
+        style={[styles.addButton, { backgroundColor: "#ff9800" }]}
+        onPress={sendTestNotification}
+      >
+        <Text style={styles.addButtonText}>Send Test Notification</Text>
+      </TouchableOpacity>
+
+      {/* Modal for adding bill */}
+      <Modal visible={modalVisible} animationType="slide">
+        <View style={styles.modalContent}>
+          <TextInput
+            placeholder="Bill Name"
+            value={billName}
+            onChangeText={setBillName}
+            style={styles.input}
+          />
+          <TextInput
+            placeholder="Amount"
+            value={billAmount}
+            onChangeText={setBillAmount}
+            style={styles.input}
+            keyboardType="numeric"
+          />
+          <TextInput
+            placeholder="Due Date (YYYY-MM-DD)"
+            value={billDueDate}
+            onChangeText={setBillDueDate}
+            style={styles.input}
+          />
+
+          <Picker
+            selectedValue={billReminder}
+            onValueChange={(itemValue) => setBillReminder(itemValue)}
+            style={styles.input}
+          >
+            <Picker.Item label="1 day before" value="1 day before" />
+            <Picker.Item label="2 days before" value="2 days before" />
+            <Picker.Item label="1 week before" value="1 week before" />
+          </Picker>
+
+          <TouchableOpacity style={styles.saveButton} onPress={addBill}>
+            <Text style={styles.saveButtonText}>Save Bill</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => setModalVisible(false)}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: { flex: 1, padding: 20, backgroundColor: "#f5f5f5" },
+  header: { fontSize: 24, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  billItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    padding: 15,
+    backgroundColor: "#fff",
+    marginBottom: 10,
+    borderRadius: 8,
+    elevation: 2,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  billText: { fontSize: 16 },
+  deleteText: { color: "red", fontWeight: "bold" },
+  addButton: {
+    backgroundColor: "#2196F3",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginVertical: 5,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  addButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  modalContent: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "#fff" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 10,
+    marginBottom: 15,
+    borderRadius: 8,
   },
+  saveButton: {
+    backgroundColor: "#4CAF50",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  saveButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  cancelButton: {
+    backgroundColor: "#f44336",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  cancelButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
 });
