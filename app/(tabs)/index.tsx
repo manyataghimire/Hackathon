@@ -1,82 +1,186 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import React, { useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  Modal,
+  StyleSheet,
+  Alert,
+} from "react-native";
+import { Picker } from "@react-native-picker/picker"; // dropdown
 
 export default function HomeScreen() {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [billName, setBillName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [dueDate, setDueDate] = useState("");
+  const [description, setDescription] = useState("");
+  const [reminder, setReminder] = useState("1"); // default 1 day
+
+  const handleSave = () => {
+    Alert.alert("Bill Saved", `Bill: ${billName}, Reminder: ${reminder} day(s) before`);
+    setModalVisible(false);
+  };
+
+  const sendTestNotification = () => {
+    Alert.alert("Test Notification", "This is a test reminder notification!");
+  };
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedView style={{ gap: 10 }}>
-          <ThemedText type="title">🚀 My First Expo App!</ThemedText>
-          <ThemedText type="default">This is showing on my phone 📱</ThemedText>
-          <ThemedText type="default">And it looks much cleaner now 🎨</ThemedText>
-        
-      </ThemedView>
+    <View style={styles.container}>
+      {/* Header */}
+      <Text style={styles.header}>Bill Management</Text>
 
+      <View style={styles.buttonGroup}>
+        {/* Add Bill Button */}
+        <TouchableOpacity
+          style={styles.addButton}
+          onPress={() => setModalVisible(true)}
+        >
+          <Text style={styles.buttonText}>+ Add Bill</Text>
+        </TouchableOpacity>
 
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        {/* Send Test Notification Button */}
+        <TouchableOpacity style={styles.testButton} onPress={sendTestNotification}>
+          <Text style={styles.buttonText}>Send Test Notification</Text>
+        </TouchableOpacity>
+      </View>
+
+      {/* Modal for Add Bill */}
+      <Modal visible={modalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <TextInput
+              style={styles.input}
+              placeholder="Bill Name"
+              value={billName}
+              onChangeText={setBillName}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Amount"
+              keyboardType="numeric"
+              value={amount}
+              onChangeText={setAmount}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Due Date (YYYY-MM-DD)"
+              value={dueDate}
+              onChangeText={setDueDate}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Description"
+              value={description}
+              onChangeText={setDescription}
+            />
+
+            {/* Reminder Dropdown */}
+            <View style={styles.pickerContainer}>
+              <Picker selectedValue={reminder} onValueChange={(val) => setReminder(val)}>
+                <Picker.Item label="1 day before" value="1" />
+                <Picker.Item label="2 days before" value="2" />
+                <Picker.Item label="3 days before" value="3" />
+                <Picker.Item label="4 days before" value="4" />
+                <Picker.Item label="5 days before" value="5" />
+                <Picker.Item label="6 days before" value="6" />
+                <Picker.Item label="1 week before" value="7" />
+              </Picker>
+            </View>
+
+            {/* Buttons */}
+            <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+              <Text style={styles.buttonText}>Save Bill</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.buttonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#f1f6ff", // light blue
+    paddingTop: 60, // header spacing
+    paddingHorizontal: 20,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  header: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: "#3b6ef5",
+    textAlign: "center",
+    marginBottom: 40,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  buttonGroup: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addButton: {
+    backgroundColor: "#4a6cf7",
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    width: "100%",
+    alignItems: "center",
+  },
+  testButton: {
+    backgroundColor: "#22b8cf",
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 20,
+    width: "100%",
+    alignItems: "center",
+  },
+  buttonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "white",
+    width: "90%",
+    borderRadius: 10,
+    padding: 20,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  pickerContainer: {
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  saveButton: {
+    backgroundColor: "green",
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 10,
+    alignItems: "center",
+  },
+  cancelButton: {
+    backgroundColor: "red",
+    padding: 15,
+    borderRadius: 8,
+    alignItems: "center",
   },
 });

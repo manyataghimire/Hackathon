@@ -13,14 +13,21 @@ export default function RootLayout() {
   });
 
   if (!loaded) {
-    // Async font loading only occurs in development.
-    return null;
+    return null; // Wait for fonts to load
   }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
+      <Stack initialRouteName="login"> 
+        {/* 👆 This makes login.tsx the first screen */}
+        
+        {/* Login screen */}
+        <Stack.Screen name="login" options={{ headerShown: false }} />
+
+        {/* Tabs (home, profile, notifications) */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+        {/* Not Found fallback */}
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
