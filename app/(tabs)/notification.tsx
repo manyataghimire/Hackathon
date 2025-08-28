@@ -35,14 +35,14 @@ export default function NotificationsScreen() {
         Deadline: <Text style={styles.deadline}>{item.deadline}</Text>
       </Text>
       <Text style={styles.label}>
-        Amount: <Text style={styles.deadline}>{item.money}</Text>
+        Amount: <Text style={styles.money}>{item.money}</Text>
       </Text>
     </View>
   );
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Notifications</Text>
+      <Text style={styles.header}>🔔 Notifications</Text>
 
       {/* Year & Month Dropdowns */}
       <View style={styles.filterRow}>
@@ -96,7 +96,7 @@ export default function NotificationsScreen() {
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}
         ListEmptyComponent={
-          <Text style={styles.emptyText}>No notifications found.</Text>
+          <Text style={styles.emptyText}>✨ No notifications found ✨</Text>
         }
       />
     </SafeAreaView>
@@ -106,7 +106,7 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f7f9fc",
+    backgroundColor: "#eef6f9", // light pastel background
     padding: 20,
   },
   header: {
@@ -114,6 +114,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     marginBottom: 15,
     textAlign: "center",
+    color: "#2c3e50",
   },
   filterRow: {
     flexDirection: "row",
@@ -124,14 +125,17 @@ const styles = StyleSheet.create({
     flex: 1,
     marginHorizontal: 5,
     backgroundColor: "#fff",
-    borderRadius: 10,
+    borderRadius: 12,
     padding: 5,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#dcdcdc",
+    elevation: 3,
   },
   filterLabel: {
     fontSize: 14,
     fontWeight: "600",
     marginBottom: 4,
+    color: "#34495e",
   },
   picker: {
     height: 50,
@@ -140,48 +144,55 @@ const styles = StyleSheet.create({
   pickerItem: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#222",
+    color: "#2c3e50",
   },
   selectedText: {
     fontSize: 16,
     fontWeight: "bold",
     marginBottom: 10,
     textAlign: "center",
-    color: "#333",
+    color: "#16a085",
   },
   card: {
-    backgroundColor: "white",
+    backgroundColor: "#ffffff",
     padding: 16,
     marginBottom: 15,
-    borderRadius: 12,
+    borderRadius: 15,
+    borderLeftWidth: 5,
+    borderLeftColor: "#3498db", // accent color on card
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   title: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
+    color: "#2c3e50",
   },
   subtitle: {
     fontSize: 14,
-    color: "gray",
+    color: "#7f8c8d",
     marginTop: 4,
   },
   label: {
     marginTop: 6,
     fontSize: 14,
-    color: "#444",
+    color: "#34495e",
   },
   deadline: {
     fontWeight: "600",
-    color: "#111",
+    color: "#e74c3c", // red for deadline
+  },
+  money: {
+    fontWeight: "700",
+    color: "#27ae60", // green for money
   },
   emptyText: {
     fontSize: 16,
     textAlign: "center",
     marginTop: 20,
-    color: "gray",
+    color: "#95a5a6",
   },
 });

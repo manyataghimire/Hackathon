@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Manyata",
+    "name": "Bill Tracker",
     "slug": "Manyata",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "manyata",
+    "scheme": "bill tracker",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
