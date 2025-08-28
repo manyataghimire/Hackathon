@@ -1,26 +1,14 @@
-import { Picker } from "@react-native-picker/picker";
-import * as Notifications from "expo-notifications";
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  Alert,
-  FlatList,
-  Modal,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
   View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  StyleSheet,
 } from "react-native";
-
-// 🔔 Configure notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+import * as Notifications from "expo-notifications";
 
 interface Bill {
   id: string;
@@ -28,60 +16,41 @@ interface Bill {
   amount: string;
   dueDate: string;
   reminder: string;
+  description: string; // ✅ Added description
 }
 
-export default function App() {
+const BillManagement = () => {
   const [bills, setBills] = useState<Bill[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [billName, setBillName] = useState("");
   const [billAmount, setBillAmount] = useState("");
   const [billDueDate, setBillDueDate] = useState("");
-  const [billReminder, setBillReminder] = useState("1 day before");
+  const [billReminder, setBillReminder] = useState("");
+  const [billDescription, setBillDescription] = useState(""); // ✅ new
 
-  // ✅ Ask for notification permission when app starts
+  // Request notification permissions
   useEffect(() => {
-    (async () => {
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert("Permission required", "Enable notifications to get reminders.");
-      }
-    })();
+    Notifications.requestPermissionsAsync();
   }, []);
 
-  // ✅ Schedule reminder based on due date & reminder option
-  async function scheduleBillReminder(billName: string, billDate: string, reminder: string) {
-    let dueDate = new Date(billDate);
-    if (isNaN(dueDate.getTime())) return;
+  const scheduleNotification = async (bill: Bill, daysBefore: number) => {
+    const due = new Date(bill.dueDate);
+    const notifyDate = new Date(due);
+    notifyDate.setDate(due.getDate() - daysBefore);
 
-    switch (reminder) {
-      case "2 days before":
-        dueDate.setDate(dueDate.getDate() - 2);
-        break;
-      case "1 week before":
-        dueDate.setDate(dueDate.getDate() - 7);
-        break;
-      case "1 day before":
-        dueDate.setDate(dueDate.getDate() - 1);
-        break;
-    }
-
-    if (dueDate > new Date()) {
+    if (notifyDate > new Date()) {
       await Notifications.scheduleNotificationAsync({
         content: {
           title: "Bill Reminder",
-          body: `Rs.{billName} is due soon! (Rs.{reminder})`,
+          body: `${bill.name} is due on ${bill.dueDate}.`,
         },
-        trigger: { date: dueDate }, // ✅ Correct
+        trigger: notifyDate,
       });
     }
-  }
+  };
 
-  // ✅ Add new bill
-  function addBill() {
-    if (!billName || !billAmount || !billDueDate) {
-      Alert.alert("Error", "Please fill all fields");
-      return;
-    }
+  const addBill = () => {
+    if (!billName || !billAmount || !billDueDate) return;
 
     const newBill: Bill = {
       id: Date.now().toString(),
@@ -89,37 +58,40 @@ export default function App() {
       amount: billAmount,
       dueDate: billDueDate,
       reminder: billReminder,
+      description: billDescription,
     };
 
     setBills([...bills, newBill]);
-    scheduleBillReminder(billName, billDueDate, billReminder);
-    setModalVisible(false);
+
+    // Schedule reminders
+    scheduleNotification(newBill, 1); // 1 day before
+    scheduleNotification(newBill, 7); // 1 week before
+
+    // reset fields
     setBillName("");
     setBillAmount("");
     setBillDueDate("");
-    setBillReminder("1 day before");
-  }
+    setBillReminder("");
+    setBillDescription("");
+    setModalVisible(false);
+  };
 
-  // ✅ Delete bill
-  function deleteBill(id: string) {
-    setBills(bills.filter((bill) => bill.id !== id));
-  }
-
-  // ✅ Test notification after 5 sec
-  async function sendTestNotification() {
+  // Test notification
+  const sendTestNotification = async () => {
     await Notifications.scheduleNotificationAsync({
       content: {
         title: "Test Notification",
-        body: "This is a test notification (works in 5 sec).",
+        body: "This is a test notification!",
       },
-      trigger: { seconds: 5 },
+      trigger: null,
     });
-  }
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Bill Reminder</Text>
+    <View style={styles.container}>
+      <Text style={styles.header}>Bill Management</Text>
 
+      {/* Bill List */}
       <FlatList
         data={bills}
         keyExtractor={(item) => item.id}
@@ -128,9 +100,9 @@ export default function App() {
             <Text style={styles.billText}>
               {item.name} - Rs.{item.amount} - Due: {item.dueDate}
             </Text>
-            <TouchableOpacity onPress={() => deleteBill(item.id)}>
-              <Text style={styles.deleteText}>Delete</Text>
-            </TouchableOpacity>
+            {item.description ? (
+              <Text style={styles.descText}>{item.description}</Text>
+            ) : null}
           </View>
         )}
       />
@@ -143,105 +115,140 @@ export default function App() {
         <Text style={styles.addButtonText}>+ Add Bill</Text>
       </TouchableOpacity>
 
-      {/* 🔔 Test Notification Button */}
+      {/* Send Test Notification */}
       <TouchableOpacity
-        style={[styles.addButton, { backgroundColor: "#ff9800" }]}
+        style={styles.testButton}
         onPress={sendTestNotification}
       >
-        <Text style={styles.addButtonText}>Send Test Notification</Text>
+        <Text style={styles.testButtonText}>Send Test Notification</Text>
       </TouchableOpacity>
 
-      {/* Modal for adding bill */}
-      <Modal visible={modalVisible} animationType="slide">
-        <View style={styles.modalContent}>
-          <TextInput
-            placeholder="Bill Name"
-            value={billName}
-            onChangeText={setBillName}
-            style={styles.input}
-          />
-          <TextInput
-            placeholder="Amount"
-            value={billAmount}
-            onChangeText={setBillAmount}
-            style={styles.input}
-            keyboardType="numeric"
-          />
-          <TextInput
-            placeholder="Due Date (YYYY-MM-DD)"
-            value={billDueDate}
-            onChangeText={setBillDueDate}
-            style={styles.input}
-          />
+      {/* Modal for Adding Bill */}
+      <Modal visible={modalVisible} animationType="slide" transparent>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <TextInput
+              placeholder="Bill Name"
+              value={billName}
+              onChangeText={setBillName}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Amount"
+              keyboardType="numeric"
+              value={billAmount}
+              onChangeText={setBillAmount}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Due Date (YYYY-MM-DD)"
+              value={billDueDate}
+              onChangeText={setBillDueDate}
+              style={styles.input}
+            />
+            <TextInput
+              placeholder="Description"
+              value={billDescription}
+              onChangeText={setBillDescription}
+              style={[styles.input, { height: 70 }]} // ✅ multiline
+              multiline
+            />
+            <TextInput
+              placeholder="Reminder"
+              value={billReminder}
+              onChangeText={setBillReminder}
+              style={styles.input}
+            />
 
-          <Picker
-            selectedValue={billReminder}
-            onValueChange={(itemValue) => setBillReminder(itemValue)}
-            style={styles.input}
-          >
-            <Picker.Item label="1 day before" value="1 day before" />
-            <Picker.Item label="2 days before" value="2 days before" />
-            <Picker.Item label="1 week before" value="1 week before" />
-          </Picker>
+            <TouchableOpacity style={styles.saveButton} onPress={addBill}>
+              <Text style={styles.saveButtonText}>Save Bill</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.saveButton} onPress={addBill}>
-            <Text style={styles.saveButtonText}>Save Bill</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => setModalVisible(false)}
-          >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => setModalVisible(false)}
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
-}
+};
+
+export default BillManagement;
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#f5f5f5" },
-  header: { fontSize: 24, fontWeight: "bold", marginBottom: 20, textAlign: "center" },
+  container: { flex: 1, padding: 20, backgroundColor: "#f2f6fc" },
+  header: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+    color: "#4e73df",
+  },
   billItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    padding: 15,
     backgroundColor: "#fff",
-    marginBottom: 10,
+    padding: 12,
     borderRadius: 8,
+    marginBottom: 10,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
     elevation: 2,
   },
-  billText: { fontSize: 16 },
-  deleteText: { color: "red", fontWeight: "bold" },
+  billText: { fontSize: 16, fontWeight: "600", color: "#333" },
+  descText: { fontSize: 14, color: "gray", fontStyle: "italic", marginTop: 5 },
   addButton: {
-    backgroundColor: "#2196F3",
+    backgroundColor: "#4e73df",
     padding: 15,
-    borderRadius: 8,
+    borderRadius: 10,
     alignItems: "center",
-    marginVertical: 5,
+    marginTop: 20,
   },
   addButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
-  modalContent: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "#fff" },
+  testButton: {
+    backgroundColor: "#36b9cc",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  testButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+  },
+  modalContent: {
+    width: "90%",
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 12,
+  },
   input: {
     borderWidth: 1,
-    borderColor: "#ccc",
+    borderColor: "#ddd",
     padding: 10,
-    marginBottom: 15,
     borderRadius: 8,
+    marginBottom: 12,
   },
   saveButton: {
-    backgroundColor: "#4CAF50",
-    padding: 15,
+    backgroundColor: "#1cc88a",
+    padding: 12,
     borderRadius: 8,
     alignItems: "center",
     marginBottom: 10,
   },
-  saveButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  saveButtonText: { color: "#fff", fontWeight: "bold" },
   cancelButton: {
-    backgroundColor: "#f44336",
-    padding: 15,
+    backgroundColor: "#e74a3b",
+    padding: 12,
     borderRadius: 8,
     alignItems: "center",
   },
-  cancelButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  cancelButtonText: { color: "#fff", fontWeight: "bold" },
 });
